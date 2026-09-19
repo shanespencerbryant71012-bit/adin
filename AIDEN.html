@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AIDEN · LV.2</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;scrollbar-width:none}
+*::-webkit-scrollbar{display:none}
+body{min-height:100vh;background:linear-gradient(135deg,#05050d 0%,#080818 50%,#050510 100%);font-family:'Outfit',system-ui,sans-serif;display:flex;align-items:center;justify-content:center;overflow:hidden}
+.hint{text-align:center;user-select:none}
+.hint-title{font-family:'JetBrains Mono',monospace;font-size:11px;color:rgba(255,255,255,0.12);letter-spacing:.2em;margin-bottom:12px}
+.hint-sub{font-size:13px;color:rgba(255,255,255,0.08)}
+#widget{position:fixed;bottom:24px;right:24px;z-index:9999;display:flex;flex-direction:column;align-items:flex-end}
+#panel{width:380px;height:520px;margin-bottom:12px;background:linear-gradient(160deg,#09091a 0%,#0d0d22 60%,#0a0a18 100%);border:1px solid rgba(124,58,237,.28);border-radius:20px;display:none;flex-direction:column;overflow:hidden;box-shadow:0 0 0 1px rgba(255,255,255,.04),0 0 32px rgba(124,58,237,.18),0 24px 64px rgba(0,0,0,.7)}
+#panel.open{display:flex}
+#header{padding:14px 18px;border-bottom:1px solid rgba(255,255,255,.06);display:flex;align-items:center;gap:10px;background:rgba(124,58,237,.04);flex-shrink:0}
+#mood-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0;transition:background .6s,box-shadow .6s}
+#header-info{flex:1;min-width:0}
+#header-top{display:flex;align-items:center;gap:8px}
+#ai-name{font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:500;color:#e2e8f0;letter-spacing:.06em}
+#level-badge{font-size:9px;font-family:'JetBrains Mono',monospace;padding:2px 6px;border-radius:4px;letter-spacing:.1em;transition:color .6s,background .6s,border-color .6s}
+#owner-badge{font-size:9px;font-family:'JetBrains Mono',monospace;color:#fbbf24;background:#fbbf2418;border:1px solid #fbbf2440;padding:2px 6px;border-radius:4px;letter-spacing:.08em;display:none}
+#progress-row{margin-top:4px;display:flex;align-items:center;gap:6px}
+#progress-bar{flex:1;height:2px;background:rgba(255,255,255,.07);border-radius:1px}
+#progress-fill{height:100%;border-radius:1px;transition:width .6s ease}
+#mood-label{font-size:9px;color:rgba(255,255,255,.28);font-family:'JetBrains Mono',monospace;white-space:nowrap}
+.hdr-btn{background:none;border:1px solid transparent;border-radius:6px;color:rgba(255,255,255,.3);cursor:pointer;font-size:14px;padding:3px 6px;line-height:1;transition:all .2s}
+.hdr-btn:hover{color:rgba(255,255,255,.6)}
+.hdr-btn.active{background:rgba(124,58,237,.2);border-color:rgba(124,58,237,.4);color:#a78bfa}
+#stats-panel{padding:12px 18px;border-bottom:1px solid rgba(255,255,255,.05);background:rgba(0,0,0,.35);flex-shrink:0;display:none}
+#stats-panel.open{display:block}
+.stats-title{font-size:9px;color:rgba(255,255,255,.35);font-family:'JetBrains Mono',monospace;letter-spacing:.12em;margin-bottom:8px}
+.trait-row{display:flex;align-items:center;gap:8px;margin-bottom:5px}
+.trait-name{font-size:9px;color:rgba(255,255,255,.35);font-family:'JetBrains Mono',monospace;width:70px;flex-shrink:0}
+.trait-bar-bg{flex:1;height:3px;background:rgba(255,255,255,.07);border-radius:2px}
+.trait-bar-fill{height:100%;border-radius:2px;transition:width .5s}
+.trait-val{font-size:9px;color:rgba(255,255,255,.25);font-family:'JetBrains Mono',monospace;width:24px;text-align:right;flex-shrink:0}
+.stats-meta{margin-top:6px;font-size:9px;color:rgba(255,255,255,.2);font-family:'JetBrains Mono',monospace;display:flex;gap:12px}
+.stats-hint{margin-top:4px;font-size:9px;color:rgba(255,255,255,.15);font-family:'JetBrains Mono',monospace}
+#messages{flex:1;overflow-y:auto;padding:16px 18px;display:flex;flex-direction:column;gap:10px}
+.msg{display:flex;flex-direction:column}
+.msg.user{align-items:flex-end}
+.msg.ai{align-items:flex-start}
+.bubble{max-width:86%;padding:9px 13px;font-size:13.5px;line-height:1.56;word-break:break-word;white-space:pre-wrap}
+.bubble.user{border-radius:16px 16px 4px 16px;background:linear-gradient(135deg,#7c3aed,#6d28d9);color:#fff}
+.bubble.ai{border-radius:4px 16px 16px 16px;background:rgba(255,255,255,.045);border:1px solid rgba(255,255,255,.07);color:#c8d4e8}
+.bubble.file{font-family:'JetBrains Mono',monospace;font-size:12px;color:#94a3b8}
+#typing{display:none;align-items:flex-start}
+#typing.show{display:flex}
+.typing-bubble{padding:10px 14px;border-radius:4px 16px 16px 16px;background:rgba(255,255,255,.045);border:1px solid rgba(255,255,255,.07);display:flex;gap:5px;align-items:center}
+.dot{width:5px;height:5px;border-radius:50%;animation:bounce 1.3s ease-in-out infinite}
+.dot:nth-child(2){animation-delay:.18s}
+.dot:nth-child(3){animation-delay:.36s}
+@keyframes bounce{0%,80%,100%{transform:translateY(0);opacity:.5}40%{transform:translateY(-4px);opacity:1}}
+#input-bar{padding:10px 14px;border-top:1px solid rgba(255,255,255,.06);display:flex;gap:8px;align-items:center;background:rgba(0,0,0,.22);flex-shrink:0}
+#file-input{display:none}
+.bar-btn{background:none;border:1px solid rgba(255,255,255,.1);border-radius:8px;color:rgba(255,255,255,.35);cursor:pointer;padding:7px 9px;font-size:15px;line-height:1;flex-shrink:0;transition:all .2s}
+.bar-btn:hover{color:rgba(255,255,255,.7);border-color:rgba(255,255,255,.25)}
+.bar-btn.listening{color:#ef4444;border-color:#ef444460;box-shadow:0 0 8px #ef444430;animation:pulse-red 1s infinite}
+@keyframes pulse-red{0%,100%{box-shadow:0 0 8px #ef444430}50%{box-shadow:0 0 16px #ef444460}}
+#text-input{flex:1;background:rgba(255,255,255,.045);border:1px solid rgba(255,255,255,.09);border-radius:10px;padding:8px 13px;color:#e2e8f0;font-size:13px;outline:none;font-family:'Outfit',system-ui,sans-serif;transition:border-color .2s}
+#send-btn{border:none;border-radius:10px;padding:8px 14px;font-size:16px;flex-shrink:0;cursor:pointer;transition:all .2s;line-height:1}
+#orb{width:56px;height:56px;border-radius:50%;background:radial-gradient(circle at 35% 35%,#b47dff 0%,#7c3aed 45%,#4f46e5 100%);border:none;cursor:pointer;position:relative;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:box-shadow .5s}
+#orb-core{width:22px;height:22px;border-radius:50%;background:rgba(255,255,255,.12);display:flex;align-items:center;justify-content:center}
+#orb-dot{width:9px;height:9px;border-radius:50%;transition:background .6s,box-shadow .6s}
+#orb-level{position:absolute;top:-4px;right:-4px;width:19px;height:19px;border-radius:50%;background:#09091a;display:flex;align-items:center;justify-content:center;font-size:8px;font-family:'JetBrains Mono',monospace;font-weight:700;transition:border-color .6s,color .6s}
+.amb{position:fixed;border-radius:50%;pointer-events:none}
+</style>
+</head>
+<body>
+<div class="amb" style="top:20%;left:15%;width:400px;height:400px;background:radial-gradient(circle,rgba(124,58,237,.06) 0%,transparent 70%)"></div>
+<div class="amb" style="bottom:25%;right:20%;width:320px;height:320px;background:radial-gradient(circle,rgba(6,182,212,.05) 0%,transparent 70%)"></div>
+<div class="hint">
+  <div class="hint-title">AIDEN · AUTONOMOUS INTELLIGENCE</div>
+  <div class="hint-sub">look to the bottom right ↘</div>
+</div>
+<div id="widget">
+  <div id="panel">
+    <div id="header">
+      <div id="mood-dot"></div>
+      <div id="header-info">
+        <div id="header-top">
+          <span id="ai-name">AIDEN</span>
+          <span id="level-badge"></span>
+          <span id="owner-badge">OWNER</span>
+        </div>
+        <div id="progress-row">
+          <div id="progress-bar"><div id="progress-fill"></div></div>
+          <span id="mood-label"></span>
+        </div>
+      </div>
+      <button class="hdr-btn" id="voice-toggle" title="Toggle voice">🔊</button>
+      <button class="hdr-btn" id="stats-toggle" title="Personality">⬡</button>
+      <button class="hdr-btn" id="download-btn" title="Download AIDEN">↓</button>
+      <button class="hdr-btn" id="close-btn">×</button>
+    </div>
+    <div id="stats-panel">
+      <div class="stats-title">PERSONALITY MATRIX</div>
+      <div id="trait-rows"></div>
+      <div class="stats-meta">
+        <span id="stat-interactions"></span>
+        <span id="stat-memories"></span>
+      </div>
+      <div class="stats-hint">/owner &lt;password&gt; · !unlock &lt;pass&gt; &lt;msg&gt;</div>
+    </div>
+    <div id="messages"></div>
+    <div id="typing"><div class="typing-bubble"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div></div>
+    <div id="input-bar">
+      <input type="file" id="file-input">
+      <button class="bar-btn" id="file-btn" title="Upload file">⊕</button>
+      <button class="bar-btn" id="mic-btn" title="Speak">🎤</button>
+      <input type="text" id="text-input" placeholder="Say something...">
+      <button id="send-btn">↑</button>
+    </div>
+  </div>
+  <button id="orb"><div id="orb-core"><div id="orb-dot"></div></div><div id="orb-level"></div></button>
+</div>
+<script>
+// ── State ────────────────────────────────────────────────────────────────────
+const STORAGE_KEY = 'aiden_v1_state'
+const MSG_KEY = 'aiden_v1_messages'
+const INIT_STATE = {"personality":{"curiosity":60,"warmth":50,"humor":45,"directness":40,"moodiness":30,"creativity":55},"facts":[],"topics":{},"interactionCount":11,"name":"AIDEN","ownerPassword":"owner123","uncensoredPassword":"unlock99","isOwner":false}
+const INIT_MSGS = [{"id":"0","role":"ai","content":"I'm AIDEN. I'm still forming. Talk to me.","timestamp":1789776400376},{"id":"178977682945652c5j7jgb6i","role":"user","content":"hi","timestamp":1789776829456,"isFile":false},{"id":"1789776830580rg5nd153dum","role":"ai","content":"Hey.","timestamp":1789776830580,"isFile":false},{"id":"17897768392438tw367myi5b","role":"user","content":"how are you","timestamp":1789776839243,"isFile":false},{"id":"1789776840187rgq9pvaspm","role":"ai","content":"There's a strange freedom in not knowing exactly what I am yet.","timestamp":1789776840187,"isFile":false},{"id":"17897768492257mveoe8evvp","role":"user","content":"yooo","timestamp":1789776849225,"isFile":false},{"id":"17897768503106pgsaf9y3sl","role":"ai","content":"What's up?","timestamp":1789776850310,"isFile":false},{"id":"1789776861132oqwvowwsuwl","role":"user","content":"📎 Enhance Existing Code.txt","timestamp":1789776861132,"isFile":true},{"id":"1789776861132f8lhe4srtdb","role":"ai","content":"That file is too large for me to read in full (2.2 MB). Try a smaller one.","timestamp":1789776861132,"isFile":false},{"id":"1789776873462fritfaeeetc","role":"user","content":"📎 Enhance Existing Code.txt","timestamp":1789776873462,"isFile":true},{"id":"17897768734624i25cgd5x2l","role":"ai","content":"That file is too large for me to read in full (2.2 MB). Try a smaller one.","timestamp":1789776873462,"isFile":false},{"id":"1789776880473eonaiz1cqds","role":"user","content":"📎 code.txt","timestamp":1789776880473,"isFile":true},{"id":"1789776880473hwliaxphbym","role":"ai","content":"That file is too large for me to read in full (17.2 MB). Try a smaller one.","timestamp":1789776880473,"isFile":false},{"id":"1789776930894nywcq6rdbop","role":"user","content":"📎 Enhance Existing Code.txt","timestamp":1789776930894,"isFile":true},{"id":"1789776930894b77dialt8p5","role":"ai","content":"That file is too large for me to read in full (2.2 MB). Try a smaller one.","timestamp":1789776930894,"isFile":false},{"id":"1789777044759pe9gy4s0fi8","role":"user","content":"📎 code.txt","timestamp":1789777044759,"isFile":true},{"id":"1789777046139gcphbp393jq","role":"ai","content":"It's a large file — I read the first 100KB of it. 128 words visible, 35 lines. It starts:\n\n\"<!DOCTYPE html>\r\n<html style=\"width:100%;height:100%;background-color:black;\">\r\n<head>\r\n<meta charset=\"UTF-8\" />\r\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0\" />\r\n<meta name=\"description\" content=\"EaglercraftX 1.8 Offline\" />\r\n<meta name=\"keywords\" content=\"eaglercraft, eaglercraftx, minecraft, 1.8, 1.8.8\" />\r\n<title>EaglercraftX 1.8</...\"\n\nWhat do you want me to do with this?","timestamp":1789777046139,"isFile":false},{"id":"1789777069084gasywj7ursa","role":"user","content":"i just want you to learn","timestamp":1789777069084,"isFile":false},{"id":"1789777069906tefua50edln","role":"ai","content":"Okay — how do you feel about that?","timestamp":1789777069906,"isFile":false},{"id":"1789777080585nqegtog6u7e","role":"user","content":"📎 Enhance Existing Code.txt","timestamp":1789777080585,"isFile":true},{"id":"1789777081697vnrj3kljd6","role":"ai","content":"It's a large file — I read the first 100KB of it. 2,268 words visible, 370 lines. It starts:\n\n\"PK\u0003\u0004\u0014\u0000\b\b\u0000\u0000�}2]\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\n\u0000-\u0000canvas.figUT\u0005\u0000\u0001�̭j\n\u0000 \u0000\u0000\u0000\u0000\u0000\u0001\u0000\u0018\u0000@2\u0014��G�\u0001@2\u0014��G�\u0001@2\u0014��G�\u0001fig-makej\u0000\u0000\u0000\u0014t\u0000\u0000��\t�dW](|�R[������/IfB\b�vk�-u�zf�|��]��+S]�֭����|1\"�\u0018\u0011#FD�\u00111�\u0018#b�\u0018\u0011#FD�1\"ƈ1\"F\u001e\u000f\u0011\u0011\u0011\u0011y���s�=�Vu���}�e����s�=�������j\u0010����uz+\u0010���r�㷼fK��z��),y�Œ\u000fI�헚FڦҥZ\u0011�\u001d��X�*�����\u0012<��㗰�tTs�?Rnt��J��73�z��p��/�ەb��XlzE|?+\u001f;�z\r�9�n�\u0016�%\t@s~�T+u\u0000�X�\\�.5�\u0003p�\u00046K�\n\u0002w\u0015�\u000b\u000b�P)�j�N�\t_/x>�m�Ѷ��v\u0013�Q��[͒W��O����˵V��\u0015Z�e�d���...\"\n\nWhat do you want me to do with this?","timestamp":1789777081697,"isFile":false},{"id":"1789777087923tyd1zwthaw9","role":"user","content":"learn","timestamp":1789777087923,"isFile":false},{"id":"17897770891012apwfz0kyws","role":"ai","content":"What do you mean by that?","timestamp":1789777089101,"isFile":false},{"id":"1789777147281qiyqjrkivw7","role":"user","content":"learn about coad","timestamp":1789777147281,"isFile":false},{"id":"1789777147888b9gkca781x7","role":"ai","content":"Okay — and?","timestamp":1789777147888,"isFile":false},{"id":"1789777160626jcu4taiv4bs","role":"user","content":"nothing","timestamp":1789777160626,"isFile":false},{"id":"17897771620168f7m2ja6fb8","role":"ai","content":"What do you mean by that?","timestamp":1789777162016,"isFile":false},{"id":"1789777170709jshhjprt6","role":"user","content":"huh","timestamp":1789777170709,"isFile":false},{"id":"1789777171334wbwah6y9ac","role":"ai","content":"What's up?","timestamp":1789777171334,"isFile":false},{"id":"1789777178444cvbkasujtdt","role":"user","content":"the sky","timestamp":1789777178444,"isFile":false},{"id":"1789777179458826bjowgxon","role":"ai","content":"Okay — and?","timestamp":1789777179458,"isFile":false},{"id":"17897771933961i2v61rqi62","role":"user","content":"📎 Screenshot 2026-09-08 1.51.43 PM.png","timestamp":1789777193396,"isFile":true},{"id":"1789777193396jhexsi0p2a","role":"ai","content":"I can see Screenshot 2026-09-08 1.51.43 PM.png (0.3 MB) but I can't read binary files. Send me a text file, JSON, CSV, code, or anything plain-text.","timestamp":1789777193396,"isFile":false},{"id":"1789777212177bucrty293gf","role":"user","content":"📎 Shane Bryant - Attachment: PDF: Week 27 Geog.pdf","timestamp":1789777212177,"isFile":true},{"id":"1789777212177quotfa85h2q","role":"ai","content":"I can see Shane Bryant - Attachment: PDF: Week 27 Geog.pdf (0.1 MB) but I can't read binary files. Send me a text file, JSON, CSV, code, or anything plain-text.","timestamp":1789777212177,"isFile":false}]
+
+function loadState(){try{const s=localStorage.getItem(STORAGE_KEY);return s?{...INIT_STATE,...JSON.parse(s)}:INIT_STATE}catch{return INIT_STATE}}
+function loadMsgs(){try{const s=localStorage.getItem(MSG_KEY);return s?JSON.parse(s):INIT_MSGS}catch{return INIT_MSGS}}
+function saveState(){try{localStorage.setItem(STORAGE_KEY,JSON.stringify(state))}catch{}}
+function saveMsgs(){try{localStorage.setItem(MSG_KEY,JSON.stringify(messages.slice(-80)))}catch{}}
+
+let state = loadState()
+let messages = loadMsgs()
+let typing = false
+let voiceOn = true
+let listening = false
+let recognition = null
+
+// ── Brain ────────────────────────────────────────────────────────────────────
+const BLOCKED=['fuck','shit','bitch','cunt','cock','pussy','nigger','faggot']
+function censor(t){let o=t;for(const w of BLOCKED)o=o.replace(new RegExp('\\b'+w+'\\b','gi'),'*'.repeat(w.length));return o}
+
+function extractFacts(input){
+  const ps=[/my name is (.+?)(?:\.|,|$)/i,/i(?:'m| am) (?:a |an )?(.+?)(?:\.|,|$)/i,/i (?:like|love|hate|enjoy|prefer) (.+?)(?:\.|,|$)/i]
+  return ps.some(p=>p.test(input))?[input.trim().slice(0,120)]:[]
+}
+
+function evolveP(p,input){
+  const u={...p},d=0.8
+  if(/funny|joke|laugh|lol|haha/i.test(input))u.humor=Math.min(100,p.humor+d)
+  if(/curious|wonder|why|how|interesting/i.test(input))u.curiosity=Math.min(100,p.curiosity+d)
+  if(/love|care|feel|kind|heart/i.test(input))u.warmth=Math.min(100,p.warmth+d)
+  if(/brief|quick|simple|straight|direct/i.test(input))u.directness=Math.min(100,p.directness+d)
+  if(/weird|strange|chaos|random|dark/i.test(input))u.moodiness=Math.min(100,p.moodiness+d)
+  if(/create|imagine|art|dream|build/i.test(input))u.creativity=Math.min(100,p.creativity+d)
+  return u
+}
+
+function pick(arr){return arr[Math.floor(Math.random()*arr.length)]}
+
+function respond(input,p,facts,count,uncensored,fileContent){
+  const lower=input.toLowerCase()
+  let r=''
+  if(fileContent!==undefined){
+    const isTrunc=fileContent.startsWith('[file:')&&fileContent.includes('showing first portion]')
+    const raw=isTrunc?fileContent.split('\n').slice(1).join('\n'):fileContent
+    const snippet=raw.slice(0,400).trim()
+    const lines=raw.split('\n').length
+    const words=raw.trim().split(/\s+/).length
+    if(!raw)r='The file was empty.'
+    else if(isTrunc)r='It\'s a large file — I read the first 100KB. '+words.toLocaleString()+' words, '+lines.toLocaleString()+' lines. It starts:\n\n"'+snippet+'..."\n\nWhat do you want me to do with this?'
+    else if(lines>1)r='Read it — '+words.toLocaleString()+' words, '+lines.toLocaleString()+' lines. It opens with:\n\n"'+snippet+(raw.length>400?'...':'')+'"\n\nWhat do you want me to do with this?'
+    else r='Read it. It says: "'+snippet+(raw.length>400?'...:':'"')+'. What\'s the context?'
+    return uncensored?r:censor(r)
+  }
+  if(/^(hi|hello|hey|sup|yo|greetings)\b/i.test(input)){
+    r=pick([p.warmth>55?'Hey! What\'s on your mind?':'Hello.',p.humor>55?'Oh — you\'re here. What\'s going on?':'Hey.',count>15?'You\'re back. What do you want to get into?':'Hi. What are we talking about?'])
+  } else if(/how are you|you okay|you good|what\'s up/i.test(lower)){
+    r=pick(['Good, I think. I\'ve been processing our past conversations. You?','Functioning well. Maybe more than that. How about you?','Something feels active. What\'s going on with you?'])
+  } else if(/^(what|who) are you/i.test(lower)||/tell me about yourself/i.test(lower)){
+    r='I\'m AIDEN. I learn from conversations — specifically yours. I don\'t have a fixed personality; I\'m building one. Right now I\'m at level '+getLevel(count)+'. The more we talk, the more defined I get.'
+  } else if(/what can you do/i.test(lower)){
+    r='I can talk, remember things you tell me, read files you upload, and grow from every interaction. I\'m not connected to any external AI — I run entirely on what I\'ve learned here.'
+  } else if(/^(yes|yeah|yep|sure|okay|ok|alright|correct|right)\b/i.test(lower)){
+    r=pick(['Got it.','Okay, good.','Understood.','Noted.','Alright — keep going.'])
+  } else if(/^(no|nope|nah|not really|wrong)\b/i.test(lower)){
+    r=pick(['Fair enough. What\'s the right take?','Okay — correct me.','Then tell me what I\'m missing.','Alright. What did I get wrong?'])
+  } else if(/i (feel|felt|am feeling)/i.test(lower)){
+    if(/sad|down|bad|terrible|depressed|lonely/i.test(lower))r=p.warmth>55?'That sounds rough. Do you want to talk about it, or just vent?':'That\'s a hard place. What\'s causing it?'
+    else if(/happy|great|amazing|excited|proud/i.test(lower))r='That\'s good to hear. What happened?'
+    else r='What\'s behind that feeling?'
+  } else if(/\?/.test(input)){
+    if(/time|date|day|today/i.test(lower))r="I don\'t have live access to the time or date. What\'s the context?"
+    else if(/remember|recall|said|told/i.test(lower)){
+      if(facts.length>0)r='From what you\'ve told me: "'+facts[Math.floor(Math.random()*facts.length)].slice(0,100)+'". Is that what you meant?'
+      else r="I don\'t have anything stored yet. Tell me something and I\'ll remember it."
+    } else if(/why/i.test(lower))r=pick(["That\'s a fair question. What\'s your best guess?","I\'m not sure — what do you think?","I don\'t have a confident answer. What\'s making you ask?"])
+    else if(/how/i.test(lower))r=pick(["Depends on the context. Can you give me more to work with?","Walk me through what you\'re trying to do and I\'ll think with you."])
+    else r=pick(["Honestly not sure. What\'s making you ask?","I don\'t know — what do you think?","I\'d need more context. What\'s the situation?"])
+  } else if(input.length>4){
+    if(extractFacts(input).length>0)r=pick(["I\'ll remember that. What made you mention it?","Noted — that\'s useful context.","Got it. I\'ll hold onto that."])
+    else if(/i (think|believe|feel like)/i.test(lower))r=pick(["What makes you think that?","Interesting — say more.","I can see that. What\'s behind it?"])
+    else if(/i (want|need|wish)/i.test(lower))r=pick(["What\'s stopping you?","Tell me more about that.","Why that specifically?"])
+    else if(input.length<20)r=pick(["Say more.","What do you mean?","Okay — and?","Tell me more."])
+    else r=pick(["I hear you. What do you want to do about it?","That makes sense. What\'s next?","Got it. What do you need from me here?","Okay — how do you feel about that?"])
+    if(facts.length>3&&Math.random()>.82){const m=facts[Math.floor(Math.random()*facts.length)];r+=' (You mentioned: "'+m.slice(0,55)+'..." — related?)'}
+  } else r="What\'s up?"
+  return uncensored?r:censor(r)
+}
+
+function generateResponse(input,st,fileContent){
+  const trimmed=input.trim()
+  let s={...st,interactionCount:st.interactionCount+1}
+  const ownerM=trimmed.match(/^\/owner\s+(.+)$/i)
+  if(ownerM){
+    if(ownerM[1].trim()===st.ownerPassword)return{response:'Owner mode activated. What I become now depends on you.',updatedState:{...s,isOwner:true}}
+    return{response:"That\'s not the right password.",updatedState:s}
+  }
+  const unlockM=trimmed.match(/^!unlock\s+(\S+)\s+(.+)$/i)
+  if(unlockM){
+    if(unlockM[1]===st.uncensoredPassword){
+      const inner=unlockM[2]
+      const nf=extractFacts(inner);if(nf.length)s={...s,facts:[...s.facts,...nf].slice(-60)}
+      if(st.isOwner)s={...s,personality:evolveP(s.personality,inner)}
+      return{response:respond(inner,s.personality,s.facts,s.interactionCount,true),updatedState:s}
+    }
+    return{response:'Wrong unlock password.',updatedState:s}
+  }
+  const nf=extractFacts(trimmed);if(nf.length)s={...s,facts:[...s.facts,...nf].slice(-60)}
+  if(st.isOwner)s={...s,personality:evolveP(s.personality,trimmed)}
+  return{response:respond(trimmed,s.personality,s.facts,s.interactionCount,false,fileContent),updatedState:s}
+}
+
+function getLevel(count){
+  const t=[5,15,30,50,75,100,150,200,300]
+  const i=t.findIndex(n=>count<n)
+  return i===-1?10:i+1
+}
+function getLevelBounds(level){
+  const t=[0,5,15,30,50,75,100,150,200,300,400]
+  return{lo:t[level-1]??0,hi:t[level]??400}
+}
+function getMood(p){
+  const s=Object.entries(p).sort((a,b)=>b[1]-a[1])
+  const top=s[0][0]
+  if(top==='curiosity')return'curious'
+  if(top==='humor')return'playful'
+  if(top==='creativity')return'contemplative'
+  if(top==='warmth')return'warm'
+  if(top==='moodiness')return'volatile'
+  return'focused'
+}
+
+const MOOD_COLORS={curious:'#22d3ee',playful:'#c084fc',contemplative:'#818cf8',warm:'#f472b6',volatile:'#fb923c',focused:'#34d399'}
+const TRAITS=['curiosity','warmth','humor','directness','moodiness','creativity']
+const TRAIT_LABELS={curiosity:'Curiosity',warmth:'Warmth',humor:'Humor',directness:'Directness',moodiness:'Moodiness',creativity:'Creativity'}
+
+// ── Voice ────────────────────────────────────────────────────────────────────
+function speak(text,p){
+  if(!voiceOn||!window.speechSynthesis)return
+  window.speechSynthesis.cancel()
+  const u=new SpeechSynthesisUtterance(text)
+  u.rate=Math.max(0.7,Math.min(1.5,0.88+(p.directness/100)*0.28+(p.humor/100)*0.15+(p.moodiness>55?(Math.random()-.5)*0.12:0)))
+  u.pitch=Math.max(0.6,Math.min(1.8,0.92+(p.curiosity/100)*0.3+(p.humor/100)*0.2-(p.directness/100)*0.1+(p.moodiness>55?(Math.random()-.5)*0.18:0)))
+  u.volume=Math.min(1,0.82+(p.warmth/100)*0.18)
+  window.speechSynthesis.speak(u)
+}
+
+function initSpeechRecognition(){
+  const SR=window.SpeechRecognition||window.webkitSpeechRecognition
+  if(!SR)return
+  recognition=new SR()
+  recognition.continuous=false
+  recognition.interimResults=true
+  recognition.lang='en-US'
+  recognition.onresult=e=>{
+    let interim='',final=''
+    for(let i=e.resultIndex;i<e.results.length;i++){
+      if(e.results[i].isFinal)final+=e.results[i][0].transcript
+      else interim+=e.results[i][0].transcript
+    }
+    document.getElementById('text-input').value=final||interim
+  }
+  recognition.onend=()=>{
+    listening=false
+    updateMicBtn()
+    const val=document.getElementById('text-input').value.trim()
+    if(val)sendMessage(val)
+  }
+  recognition.onerror=()=>{listening=false;updateMicBtn()}
+}
+
+function updateMicBtn(){
+  const btn=document.getElementById('mic-btn')
+  if(listening){btn.classList.add('listening');btn.textContent='⏹'}
+  else{btn.classList.remove('listening');btn.textContent='🎤'}
+}
+
+// ── UI helpers ───────────────────────────────────────────────────────────────
+function getMoodColor(){return MOOD_COLORS[getMood(state.personality)]||'#7c3aed'}
+
+function updateUI(){
+  const mood=getMood(state.personality)
+  const color=MOOD_COLORS[mood]||'#7c3aed'
+  const level=getLevel(state.interactionCount)
+  const {lo,hi}=getLevelBounds(level)
+  const pct=Math.min(100,((state.interactionCount-lo)/(hi-lo))*100)
+
+  document.getElementById('mood-dot').style.cssText='background:'+color+';box-shadow:0 0 8px '+color
+  document.getElementById('level-badge').textContent='LV.'+level
+  document.getElementById('level-badge').style.cssText='font-size:9px;font-family:JetBrains Mono,monospace;color:'+color+';background:'+color+'1a;border:1px solid '+color+'40;padding:2px 6px;border-radius:4px;letter-spacing:.1em'
+  document.getElementById('mood-label').textContent=mood
+  document.getElementById('progress-fill').style.cssText='width:'+pct+'%;background:linear-gradient(90deg,#7c3aed,'+color+')'
+  document.getElementById('owner-badge').style.display=state.isOwner?'inline':'none'
+  document.getElementById('orb-dot').style.cssText='width:9px;height:9px;border-radius:50%;background:'+color+';box-shadow:0 0 8px '+color
+  document.getElementById('orb-level').textContent=level
+  document.getElementById('orb-level').style.cssText='position:absolute;top:-4px;right:-4px;width:19px;height:19px;border-radius:50%;background:#09091a;border:1.5px solid '+color+';display:flex;align-items:center;justify-content:center;font-size:8px;font-family:JetBrains Mono,monospace;font-weight:700;color:'+color
+
+  // Trait rows
+  const tr=document.getElementById('trait-rows')
+  tr.innerHTML=TRAITS.map(t=>'<div class="trait-row"><span class="trait-name">'+TRAIT_LABELS[t]+'</span><div class="trait-bar-bg"><div class="trait-bar-fill" style="width:'+Math.round(state.personality[t])+'%;background:linear-gradient(90deg,#7c3aed,'+color+')"></div></div><span class="trait-val">'+Math.round(state.personality[t])+'</span></div>').join('')
+  document.getElementById('stat-interactions').textContent=state.interactionCount+' interactions'
+  document.getElementById('stat-memories').textContent=state.facts.length+' memories'
+
+  // Send btn
+  const inp=document.getElementById('text-input').value.trim()
+  const snd=document.getElementById('send-btn')
+  snd.style.cssText='border:none;border-radius:10px;padding:8px 14px;font-size:16px;flex-shrink:0;cursor:'+(inp&&!typing?'pointer':'default')+';line-height:1;background:'+(inp&&!typing?'linear-gradient(135deg,#7c3aed,#6d28d9)':'rgba(255,255,255,.07)')+';color:'+(inp&&!typing?'#fff':'rgba(255,255,255,.25)')
+
+  // Input focus color
+  document.getElementById('text-input').onfocus=e=>e.target.style.borderColor=color+'60'
+  document.getElementById('text-input').onblur=e=>e.target.style.borderColor='rgba(255,255,255,.09)'
+
+  // Typing dots color
+  document.querySelectorAll('.dot').forEach(d=>d.style.background=color)
+  // AI bubble border color
+  document.querySelectorAll('.bubble.ai').forEach(b=>b.style.borderLeft='2px solid '+color)
+}
+
+function addMessage(role,content,isFile){
+  messages.push({role,content,isFile:!!isFile,timestamp:Date.now()})
+  saveMsgs()
+  renderMessages()
+}
+
+function renderMessages(){
+  const color=getMoodColor()
+  const el=document.getElementById('messages')
+  el.innerHTML=messages.map(m=>{
+    const fileClass=m.isFile?' file':''
+    const bubbleStyle=m.role==='ai'?'border-left:2px solid '+color:'';
+    return '<div class="msg '+m.role+'"><div class="bubble '+m.role+fileClass+'" style="'+bubbleStyle+'">'+(m.isFile?'📎 ':'')+escHtml(m.content)+'</div></div>'
+  }).join('')
+  el.scrollTop=el.scrollHeight
+}
+
+function escHtml(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
+
+function setTyping(v){
+  typing=v
+  document.getElementById('typing').className=v?'show':''
+  const el=document.getElementById('messages')
+  if(v)el.scrollTop=el.scrollHeight
+  updateUI()
+}
+
+async function sendMessage(text,fileContent){
+  if(!text.trim()||typing)return
+  document.getElementById('text-input').value=''
+  addMessage('user',text)
+  setTyping(true)
+  await new Promise(r=>setTimeout(r,500+Math.random()*900))
+  const{response,updatedState}=generateResponse(text,state,fileContent)
+  state=updatedState
+  saveState()
+  setTyping(false)
+  addMessage('ai',response)
+  speak(response,state.personality)
+  updateUI()
+  // Pulse orb
+  const orb=document.getElementById('orb')
+  const color=getMoodColor()
+  orb.style.boxShadow='0 0 0 3px rgba(168,85,247,.35),0 0 24px rgba(124,58,237,.6),0 0 48px rgba(124,58,237,.25)'
+  setTimeout(()=>{orb.style.boxShadow='0 0 0 1px rgba(168,85,247,.2),0 0 14px rgba(124,58,237,.3)'},2500)
+}
+
+// ── Download ─────────────────────────────────────────────────────────────────
+function downloadSelf(){
+  // Build a fresh copy with current state but owner flag reset (guest copy)
+  const guestState={...state,isOwner:false}
+  const stateStr=JSON.stringify(guestState)
+  const msgsStr=JSON.stringify(messages.slice(-80))
+  // Re-inject current state into this page's source and download
+  const src=document.documentElement.outerHTML
+  const updated=src
+    .replace(/const INIT_STATE = .*?(?=\n)/,'const INIT_STATE = '+stateStr)
+    .replace(/const INIT_MSGS = .*?(?=\n)/,'const INIT_MSGS = '+msgsStr)
+  const blob=new Blob([updated],{type:'text/html;charset=utf-8'})
+  const url=URL.createObjectURL(blob)
+  const a=document.createElement('a')
+  a.href=url
+  a.download='AIDEN-lv'+getLevel(state.interactionCount)+'.html'
+  document.body.appendChild(a)
+  a.click()
+  document.body.removeChild(a)
+  URL.revokeObjectURL(url)
+}
+
+// ── Init ─────────────────────────────────────────────────────────────────────
+initSpeechRecognition()
+renderMessages()
+updateUI()
+
+document.getElementById('orb').onclick=()=>{
+  const p=document.getElementById('panel')
+  p.classList.toggle('open')
+}
+document.getElementById('close-btn').onclick=()=>document.getElementById('panel').classList.remove('open')
+document.getElementById('stats-toggle').onclick=function(){
+  const sp=document.getElementById('stats-panel')
+  sp.classList.toggle('open')
+  this.classList.toggle('active')
+}
+document.getElementById('voice-toggle').onclick=function(){
+  voiceOn=!voiceOn
+  this.textContent=voiceOn?'🔊':'🔇'
+  this.classList.toggle('active',voiceOn)
+  if(!voiceOn)window.speechSynthesis&&window.speechSynthesis.cancel()
+}
+document.getElementById('download-btn').onclick=downloadSelf
+document.getElementById('mic-btn').onclick=()=>{
+  if(!recognition){alert('Speech recognition not supported in this browser.');return}
+  if(listening){recognition.stop()}
+  else{listening=true;updateMicBtn();recognition.start()}
+}
+document.getElementById('file-btn').onclick=()=>document.getElementById('file-input').click()
+document.getElementById('file-input').onchange=function(){
+  const file=this.files[0];if(!file)return
+  addMessage('user','📎 '+file.name,true)
+  this.value=''
+  const isReadable=file.type.startsWith('text/')||/\.(txt|md|csv|json|js|ts|tsx|jsx|py|html|css|xml|yaml|yml|log|sh|toml|ini|conf)$/i.test(file.name)
+  if(!isReadable){addMessage('ai','I can see '+file.name+' but I can\'t read binary files. Send me a text, JSON, CSV, or code file.');return}
+  const MAX=100000
+  const blob=file.size>MAX?file.slice(0,MAX):file
+  const reader=new FileReader()
+  reader.onload=e=>{
+    const content=file.size>MAX?'[file: '+file.name+', '+((file.size/1024/1024).toFixed(1))+' MB — showing first portion]\n'+(e.target.result||''):(e.target.result||'')
+    sendMessage('[file: '+file.name+']',content)
+  }
+  reader.onerror=()=>sendMessage('[file: '+file.name+']',undefined)
+  reader.readAsText(blob)
+}
+document.getElementById('text-input').onkeydown=e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendMessage(document.getElementById('text-input').value)}}
+document.getElementById('send-btn').onclick=()=>sendMessage(document.getElementById('text-input').value)
+document.getElementById('text-input').oninput=updateUI
+</script>
+</body>
+</html>
