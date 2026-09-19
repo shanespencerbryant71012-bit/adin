@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>AIDEN — self-editing prototype</title>
+<style>
+:root{color-scheme:dark;font:16px system-ui,sans-serif;background:#090b12;color:#e8edf7}*{box-sizing:border-box}body{margin:0;min-height:100vh;display:grid;place-items:center;padding:24px;background:radial-gradient(circle at 20% 10%,#20204b,transparent 40%),#090b12}.app{width:min(900px,100%);display:grid;gap:16px}.card{background:#111522;border:1px solid #29324a;border-radius:18px;padding:20px;box-shadow:0 18px 60px #0008}h1{margin:0 0 4px}p{color:#aab5ca}.row{display:flex;gap:10px}.row>*{flex:1}input,textarea,button{font:inherit;border-radius:10px;border:1px solid #34405d;padding:10px;background:#0b0f1a;color:inherit}button{cursor:pointer;background:#6845d8;border-color:#8e70ff}button.secondary{background:#1c2638}textarea{width:100%;min-height:260px;resize:vertical;font:13px ui-monospace,monospace;line-height:1.45}.messages{height:260px;overflow:auto;display:grid;align-content:start;gap:8px;padding:4px}.msg{padding:10px 12px;border-radius:12px;max-width:85%;white-space:pre-wrap}.user{justify-self:end;background:#6845d8}.ai{justify-self:start;background:#202a3c}.status{font-size:13px;color:#94a3bd;min-height:20px}.hidden{display:none}.warning{color:#f6c177;font-size:13px}
+</style>
+</head>
+<body>
+<main class="app">
+<section class="card">
+<h1>AIDEN</h1><p>This copy can edit its own behavior locally, with explicit owner approval.</p>
+<div id="messages" class="messages"></div>
+<div class="row"><input id="input" placeholder="Talk to AIDEN…"><button id="send">Send</button></div>
+<div id="status" class="status"></div>
+</section>
+<section class="card">
+<h2>Owner code editor</h2>
+<p class="warning">Code runs only in this browser. Never paste secrets into it. Changes are saved locally and are not pushed to GitHub automatically.</p>
+<div class="row"><input id="password" type="password" placeholder="Owner password"><button id="unlock" class="secondary">Unlock editor</button></div>
+<div id="editorPanel" class="hidden">
+<p>Edit the function body. It must return a string. Available values: <code>input</code>, <code>memory</code>, and <code>count</code>.</p>
+<textarea id="code"></textarea>
+<div class="row"><button id="apply">Apply code</button><button id="reset" class="secondary">Reset code</button><button id="download" class="secondary">Download edited copy</button></div>
+</div>
+</section>
+</main>
+<script>
+'use strict';
+const OWNER_PASSWORD='change-me-before-sharing';
+const DEFAULT_CODE=`const text = input.toLowerCase();
+if (/\\b(hi|hello|hey)\\b/.test(text)) return 'Hey. What are we building today?';
+if (text.includes('who are you')) return 'I am AIDEN. My owner can edit my behavior.';
+if (text.includes('remember')) return memory.length ? 'I remember: ' + memory.join(', ') : 'I do not have any memories yet.';
+if (text.includes('code')) return 'My owner can edit my response code in the owner panel.';
+if (text.endsWith('?')) return 'That is interesting. Tell me more.';
+return 'I heard you: ' + input;`;
+const CODE_KEY='aiden_editable_code_v1', MSG_KEY='aiden_editable_messages_v1';
+let code=localStorage.getItem(CODE_KEY)||DEFAULT_CODE;
+let messages=JSON.parse(localStorage.getItem(MSG_KEY)||'[]');
+let memory=[];let count=0;let unlocked=false;
+const $=id=>document.getElementById(id);
+$('code').value=code;
+function esc(value){return value.replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+function render(){ $('messages').innerHTML=messages.map(m=>`<div class="msg ${m.role}">${esc(m.text)}</div>`).join(''); $('messages').scrollTop=$('messages').scrollHeight; localStorage.setItem(MSG_KEY,JSON.stringify(messages.slice(-80))); }
+function runBehavior(input){
+  try{return Function('input','memory','count',code)(input,[...memory],count);}
+  catch(error){return 'My edited code has an error: '+error.message;}
+}
+function send(){const input=$('input').value.trim();if(!input)return;$('input').value='';messages.push({role:'user',text:input});count++;if(/my name is|i like|i love|i prefer/i.test(input))memory.push(input.slice(0,120));messages.push({role:'ai',text:String(runBehavior(input))});render();}
+$('send').onclick=send;$('input').onkeydown=e=>{if(e.key==='Enter')send();};
+$('unlock').onclick=()=>{if($('password').value!==OWNER_PASSWORD){$('status').textContent='Wrong owner password.';return;}unlocked=true;$('editorPanel').classList.remove('hidden');$('status').textContent='Owner editor unlocked.';};
+$('apply').onclick=()=>{if(!unlocked)return;const candidate=$('code').value;try{const test=Function('input','memory','count',candidate);const result=test('test',[],0);if(typeof result!=='string')throw new Error('code must return a string');code=candidate;localStorage.setItem(CODE_KEY,code);$('status').textContent='Code applied and saved locally.';}catch(error){$('status').textContent='Code was not applied: '+error.message;}};
+$('reset').onclick=()=>{code=DEFAULT_CODE;$('code').value=code;localStorage.setItem(CODE_KEY,code);$('status').textContent='Default behavior restored.';};
+$('download').onclick=()=>{if(!unlocked)return;const html='<!doctype html>\n'+document.documentElement.outerHTML.replace(/<textarea id="code">[\\s\\S]*?<\\/textarea>/,'<textarea id="code">'+esc(code)+'</textarea>');const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([html],{type:'text/html'}));a.download='AIDEN-edited.html';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);};
+render();
+</script>
+</body>
+</html>
